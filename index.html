@@ -109,11 +109,21 @@ function vProg(){
 }
 
 function vSet(){
+  let L=0;try{L=(localStorage.getItem(KEY)||'').length}catch(e){}
+  const sz=L<1024?L+' o':L<1048576?(L/1024).toFixed(1).replace('.',',')+' Ko':(L/1048576).toFixed(2).replace('.',',')+' Mo';
+  const pc=Math.max(0.01,L/5000000*100).toFixed(2).replace('.',',');
+  const nb=db.sessions.reduce((t,s)=>t+s.ex.reduce((u,e)=>u+e.sets.length,0),0);
   return `<h1>Réglages</h1><div class="card"><div class="mute hint">Thème</div><select id="th" style="width:100%;font:inherit;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><option value="auto"${!db.theme||db.theme==='auto'?' selected':''}>Auto (comme le téléphone)</option><option value="light"${db.theme==='light'?' selected':''}>Clair</option><option value="dark"${db.theme==='dark'?' selected':''}>Sombre</option></select></div><div class="card"><div class="mute hint">Temps de repos (secondes)</div><input id="rs" inputmode="numeric" value="${db.rest}"></div>
-  <div class="card"><div class="mute hint">Sauvegarde : tes données restent sur ce téléphone. Exporte régulièrement.</div><div class="row"><button class="sec" data-a="export">Exporter</button><button class="sec" data-a="import">Importer</button></div><input type="file" id="imp" accept=".json" hidden></div>
+  <div class="card"><div class="mute hint">Stockage utilisé</div><div class="row sp"><b style="font-size:22px">${sz}</b><span class="mute">${db.sessions.length} séances · ${nb} séries</span></div><div class="mute" style="margin-top:6px">${pc} % de la limite d'environ 5 Mo</div></div>
+  <div class="card"><div class="mute hint">Tes données restent sur ce téléphone. « Sauvegarder » ouvre le menu de partage : choisis Drive pour envoyer le fichier dans ton Drive.</div><div class="row"><button class="acc" style="flex:1" data-a="share">Sauvegarder (Drive…)</button></div><div class="row" style="margin-top:8px"><button class="sec" style="flex:1" data-a="export">Exporter</button><button class="sec" style="flex:1" data-a="import">Importer</button></div><input type="file" id="imp" accept=".json" hidden></div>
   <div class="card"><div class="mute hint">Modèles de séance</div>${Object.keys(db.templates).map(n=>`<div class="set"><span>${esc(n)}</span><span class="row"><button class="x" data-a="rentpl" data-n="${esc(n)}">Renommer</button><button class="x" data-a="deltpl" data-n="${esc(n)}">Supprimer</button></span></div>`).join('')}</div>`;
 }
 
+function shareBackup(){
+  const n='carnet-muscu-'+new Date().toISOString().slice(0,10)+'.json',f=new File([JSON.stringify(db)],n,{type:'application/json'});
+  if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f],title:'Sauvegarde Carnet Muscu'}).catch(()=>{});
+  else{alert('Partage indisponible : le fichier est téléchargé à la place.');const u=URL.createObjectURL(f),l=document.createElement('a');l.href=u;l.download=n;l.click()}
+}
 function startRest(){tEnd=Date.now()+db.rest*1000;runRest()}
 function runRest(){
   clearInterval(tick);const r=$('#rest');r.classList.add('go');
@@ -147,6 +157,7 @@ document.addEventListener('click',ev=>{
     else{db.sessions.push({id:Date.now(),date:A.date,name:A.name,ex});if(A.name!=='Séance libre')db.templates[A.name]=A.ex.map(e=>e.n);db.active=null;tab='histo'}
     tEnd=0;clearInterval(tick);$('#rest').classList.remove('go')}
   else if(a==='delsess'){if(!confirm('Supprimer cette séance ?'))return;db.sessions=db.sessions.filter(s=>s.id!==+d.id)}
+  else if(a==='share'){shareBackup();return}
   else if(a==='export'){const u=URL.createObjectURL(new Blob([JSON.stringify(db)],{type:'application/json'}));const l=document.createElement('a');l.href=u;l.download='carnet-muscu-'+new Date().toISOString().slice(0,10)+'.json';l.click();return}
   else if(a==='import'){$('#imp').click();return}
   save();render();
