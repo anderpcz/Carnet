@@ -119,10 +119,19 @@ function vSet(){
   <div class="card"><div class="mute hint">Modèles de séance</div>${Object.keys(db.templates).map(n=>`<div class="set"><span>${esc(n)}</span><span class="row"><button class="x" data-a="rentpl" data-n="${esc(n)}">Renommer</button><button class="x" data-a="deltpl" data-n="${esc(n)}">Supprimer</button></span></div>`).join('')}</div>`;
 }
 
-function shareBackup(){
-  const n='carnet-muscu-'+new Date().toISOString().slice(0,10)+'.json',f=new File([JSON.stringify(db)],n,{type:'application/json'});
-  if(navigator.canShare&&navigator.canShare({files:[f]}))navigator.share({files:[f],title:'Sauvegarde Carnet Muscu'}).catch(()=>{});
-  else{alert('Partage indisponible : le fichier est téléchargé à la place.');const u=URL.createObjectURL(f),l=document.createElement('a');l.href=u;l.download=n;l.click()}
+async function shareBackup(){
+  const n='carnet-muscu-'+new Date().toISOString().slice(0,10)+'.json',txt=JSON.stringify(db);
+  const dl=()=>{const u=URL.createObjectURL(new Blob([txt],{type:'application/json'})),l=document.createElement('a');l.href=u;l.download=n;document.body.appendChild(l);l.click();l.remove();alert('Partage impossible ici : le fichier a été téléchargé (dossier Téléchargements).')};
+  if(!navigator.share){dl();return}
+  for(const type of ['application/json','text/plain']){
+    try{
+      const f=new File([txt],n,{type});
+      if(navigator.canShare&&!navigator.canShare({files:[f]}))continue;
+      await navigator.share({files:[f],title:'Sauvegarde Carnet Muscu'});return;
+    }catch(e){if(e&&e.name==='AbortError')return}
+  }
+  try{await navigator.share({title:'Sauvegarde Carnet Muscu',text:txt});return}catch(e){if(e&&e.name==='AbortError')return}
+  dl();
 }
 function startRest(){tEnd=Date.now()+db.rest*1000;runRest()}
 function runRest(){
