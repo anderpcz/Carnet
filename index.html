@@ -36,6 +36,14 @@ nav button.on{color:#fff;box-shadow:inset 0 3px var(--acc)}
 #rest.go{display:flex}
 #rest button{background:rgba(255,255,255,.2);color:#fff;padding:8px 12px}
 svg{width:100%;height:auto;display:block}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .wd{font-size:12px;color:var(--mute);padding:4px 0}
+button.day{background:transparent;color:var(--ink);padding:6px 0 2px;border-radius:10px;font-weight:500;display:flex;flex-direction:column;align-items:center;min-height:46px;border:1px solid transparent}
+button.day i{font-style:normal;color:#fff;font-size:10px;line-height:12px;height:12px}
+button.day.today{border-color:var(--mute)}
+button.day.has{background:var(--acc);color:#fff;font-weight:700}
+button.day.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+button.day.sel:not(.has){background:var(--line)}
 </style>
 </head>
 <body>
@@ -102,15 +110,32 @@ function vSeance(){
   <div class="row" style="margin-top:16px"><button class="acc" style="flex:1" data-a="finish">Terminer la séance</button></div>`;
 }
 
+let cal=null,selDay=null;
+const p2=x=>String(x).padStart(2,'0');
+const dk=t=>{const d=new Date(t);return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())};
+function sessCard(s){
+  const vol=s.ex.reduce((t,e)=>t+e.sets.reduce((u,x)=>u+x.w*x.r,0),0);
+  return `<div class="card"><div class="row sp"><h2>${esc(s.name)}</h2><span class="mute">${dt(s.date)}</span></div>
+  <div class="mute hint">${s.ex.reduce((t,e)=>t+e.sets.length,0)} séries · ${Math.round(vol)} kg de volume${s.dur?' · '+fmtD(s.dur):''}</div>`
+  +s.ex.map(e=>`<div class="set"><span>${esc(e.n)}</span><span>${e.sets.map(x=>fmt(x.w)+'×'+x.r).join('  ')}</span></div>`).join('')
+  +`<div style="margin-top:8px"><button class="x" data-a="delsess" data-id="${s.id}">Supprimer</button></div></div>`;
+}
 function vHisto(){
-  if(!db.sessions.length)return `<h1>Historique</h1><div class="card mute">Aucune séance pour l'instant. Termine ta première séance pour la retrouver ici.</div>`;
-  return `<h1>Historique</h1>`+[...db.sessions].reverse().map(s=>{
-    const vol=s.ex.reduce((t,e)=>t+e.sets.reduce((u,x)=>u+x.w*x.r,0),0);
-    return `<div class="card"><div class="row sp"><h2>${esc(s.name)}</h2><span class="mute">${dt(s.date)}</span></div>
-    <div class="mute hint">${s.ex.reduce((t,e)=>t+e.sets.length,0)} séries · ${Math.round(vol)} kg de volume${s.dur?' · '+fmtD(s.dur):''}</div>`
-    +s.ex.map(e=>`<div class="set"><span>${esc(e.n)}</span><span>${e.sets.map(x=>fmt(x.w)+'×'+x.r).join('  ')}</span></div>`).join('')
-    +`<div style="margin-top:8px"><button class="x" data-a="delsess" data-id="${s.id}">Supprimer</button></div></div>`;
-  }).join('');
+  const now=new Date(),today=dk(now.getTime());
+  if(!cal)cal={y:now.getFullYear(),m:now.getMonth()};
+  if(!selDay)selDay=today;
+  const by={};db.sessions.forEach(s=>(by[dk(s.date)]=by[dk(s.date)]||[]).push(s));
+  const first=new Date(cal.y,cal.m,1),off=(first.getDay()+6)%7,nd=new Date(cal.y,cal.m+1,0).getDate(),pre=cal.y+'-'+p2(cal.m+1)+'-';
+  const title=first.toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+  let cells='';for(let i=0;i<off;i++)cells+='<div></div>';
+  for(let d=1;d<=nd;d++){const k=pre+p2(d),n=(by[k]||[]).length;
+    cells+=`<button class="day${n?' has':''}${k===selDay?' sel':''}${k===today?' today':''}" data-a="day" data-k="${k}">${d}<i>${n>1?n+'×':''}</i></button>`}
+  const nm=Object.keys(by).filter(k=>k.startsWith(pre)).reduce((t,k)=>t+by[k].length,0);
+  const sel=by[selDay]||[],sdate=new Date(selDay+'T12:00:00').toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
+  return `<h1>Historique</h1><div class="card"><div class="row sp" style="margin-bottom:10px"><button class="sec" data-a="calprev">‹</button><button class="x" style="text-transform:capitalize;color:var(--ink);font-size:17px;font-weight:700" data-a="caltoday">${title}</button><button class="sec" data-a="calnext">›</button></div>
+  <div class="cal">${['L','M','M','J','V','S','D'].map(x=>`<div class="wd">${x}</div>`).join('')}${cells}</div>
+  <div class="mute" style="margin-top:10px">${nm} séance${nm>1?'s':''} ce mois-ci · touche le mois pour revenir à aujourd'hui</div></div>
+  <div class="mute hint" style="text-transform:capitalize">${sdate}</div>`+(sel.length?sel.map(sessCard).join(''):`<div class="card mute">Pas de séance ce jour-là.</div>`);
 }
 
 function vProg(){
@@ -146,7 +171,7 @@ function vSet(){
   return `<h1>Réglages</h1><div class="card"><div class="mute hint">Thème</div><select id="th" style="width:100%;font:inherit;padding:11px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink)"><option value="auto"${!db.theme||db.theme==='auto'?' selected':''}>Auto (comme le téléphone)</option><option value="light"${db.theme==='light'?' selected':''}>Clair</option><option value="dark"${db.theme==='dark'?' selected':''}>Sombre</option></select><div class="mute hint" style="margin-top:14px">Couleur d'accent</div><div class="row" style="flex-wrap:wrap;gap:10px">${Object.keys(ACC).map(k=>`<button data-a="accent" data-c="${k}" aria-label="${k}" style="width:40px;height:40px;border-radius:50%;padding:0;background:${ACC[k][0]};border:3px solid ${(db.accent||'bleu')===k?'var(--ink)':'transparent'}"></button>`).join('')}</div></div><div class="card"><div class="mute hint">Temps de repos (secondes)</div><input id="rs" inputmode="numeric" value="${db.rest}"></div>
   <div class="card"><div class="mute hint">Stockage utilisé</div><div class="row sp"><b style="font-size:22px">${sz}</b><span class="mute">${db.sessions.length} séances · ${nb} séries</span></div><div class="mute" style="margin-top:6px">${pc} % de la limite d'environ 5 Mo</div></div>
   <div class="card"><div class="mute hint">Tes données restent sur ce téléphone. « Sauvegarder » ouvre le menu de partage : choisis Drive pour envoyer le fichier dans ton Drive.</div><div class="row"><button class="acc" style="flex:1" data-a="share">Sauvegarder (Drive…)</button></div><div class="row" style="margin-top:8px"><button class="sec" style="flex:1" data-a="export">Exporter</button><button class="sec" style="flex:1" data-a="import">Importer</button></div><input type="file" id="imp" hidden></div>
-  <div class="card"><div class="mute hint">Modèles de séance</div>${Object.keys(db.templates).map(n=>`<div class="set"><span>${esc(n)}</span><span class="row"><button class="x" data-a="rentpl" data-n="${esc(n)}">Renommer</button><button class="x" data-a="deltpl" data-n="${esc(n)}">Supprimer</button></span></div>`).join('')}</div><div class="mute" style="text-align:center">Version 1.0.15</div>`;
+  <div class="card"><div class="mute hint">Modèles de séance</div>${Object.keys(db.templates).map(n=>`<div class="set"><span>${esc(n)}</span><span class="row"><button class="x" data-a="rentpl" data-n="${esc(n)}">Renommer</button><button class="x" data-a="deltpl" data-n="${esc(n)}">Supprimer</button></span></div>`).join('')}</div><div class="mute" style="text-align:center">Version 1.0.17</div>`;
 }
 
 function shareBackup(){
@@ -178,6 +203,10 @@ document.addEventListener('click',ev=>{
   else if(a==='rentpl'){const n=(prompt('Nouveau nom du modèle',d.n)||'').trim();if(!n||n===d.n)return;if(db.templates[n]){alert('Ce nom existe déjà.');return}const o={};Object.keys(db.templates).forEach(k=>o[k===d.n?n:k]=db.templates[k]);db.templates=o;if(A&&A.name===d.n)A.name=n}
   else if(a==='deltpl'){if(!confirm('Supprimer le modèle '+d.n+' ?'))return;delete db.templates[d.n]}
   else if(a==='accent'){db.accent=d.c;applyTheme()}
+  else if(a==='day'){selDay=d.k}
+  else if(a==='calprev'){cal.m--;if(cal.m<0){cal.m=11;cal.y--}}
+  else if(a==='calnext'){cal.m++;if(cal.m>11){cal.m=0;cal.y++}}
+  else if(a==='caltoday'){const n=new Date();cal={y:n.getFullYear(),m:n.getMonth()};selDay=dk(n.getTime())}
   else if(a==='begin'){A.started=Date.now()}
   else if(a==='cancel'){if(!confirm('Annuler cette séance ?'))return;db.active=null}
   else if(a==='addex'){const n=$('#newex').value.trim();if(!n)return;A.ex.push({n,sets:[]})}
