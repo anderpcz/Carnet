@@ -141,7 +141,7 @@ function vSeance(){
   +(a.started?`<div class="card row sp"><span class="mute">Durée de la séance</span><b id="tm" style="font-size:26px">${fmtT(Date.now()-a.started)}</b></div>`:`<button class="acc" style="width:100%;margin-bottom:12px" data-a="begin">Commencer la séance</button>`)
   +a.ex.map((e,i)=>{
     const last=lastSets(e.n),cur=e.sets.length?e.sets[e.sets.length-1]:last[last.length-1]||{w:'',r:''};
-    return `<div class="card"><div class="row sp"><h2>${esc(e.n)}</h2><span class="row"><button class="sec" style="padding:6px 10px" data-a="target" data-i="${i}">${e.t?esc(e.t)+' reps':'+ reps'}</button><button class="x" data-a="delex" data-i="${i}">×</button></span></div>
+    return `<div class="card"><div class="row sp"><h2>${esc(e.n)}</h2><span class="row"><button class="x" style="padding:6px 8px${i===0?';opacity:.25':''}" data-a="mv" data-i="${i}" data-d="-1" aria-label="Monter">▲</button><button class="x" style="padding:6px 8px${i===a.ex.length-1?';opacity:.25':''}" data-a="mv" data-i="${i}" data-d="1" aria-label="Descendre">▼</button><button class="sec" style="padding:6px 10px" data-a="target" data-i="${i}">${e.t?esc(e.t)+' reps':'+ reps'}</button><button class="x" data-a="delex" data-i="${i}">×</button></span></div>
     <div class="mute hint">${last.length?'Dernière fois : '+last.map(s=>fmt(s.w)+'×'+s.r).join(', '):'Première fois'}</div>${advice(e.n,e.t)?`<div class="adv">Conseil : ${esc(advice(e.n,e.t))}</div>`:''}`
     +e.sets.map((s,j)=>`<div class="set"><span>Série ${j+1}</span><span>${fmt(s.w)} kg × ${s.r}${s.w>best(e.n)?' <span class="pr">record</span>':''} <button class="x" data-a="delset" data-i="${i}" data-j="${j}">×</button></span></div>`).join('')
     +`<div class="row" style="margin-top:10px"><input id="w${i}" inputmode="decimal" placeholder="kg" value="${cur.w}"><input id="r${i}" inputmode="numeric" placeholder="reps" value="${cur.r}"><button class="acc" data-a="addset" data-i="${i}">Valider</button></div></div>`;
@@ -212,7 +212,7 @@ function vSet(){
   ${exCard()}
   <div class="card"><div class="mute hint">Stockage utilisé</div><div class="row sp"><b style="font-size:22px">${sz}</b><span class="mute">${db.sessions.length} séances · ${nb} séries</span></div><div class="mute" style="margin-top:6px">${pc} % de la limite d'environ 5 Mo</div></div>
   <div class="card"><div class="mute hint">Tes données restent sur ce téléphone. « Sauvegarder » ouvre le menu de partage : choisis Drive pour envoyer le fichier dans ton Drive.</div><div class="row"><button class="acc" style="flex:1" data-a="share">Sauvegarder (Drive…)</button></div><div class="row" style="margin-top:8px"><button class="sec" style="flex:1" data-a="export">Exporter</button><button class="sec" style="flex:1" data-a="import">Importer</button></div><input type="file" id="imp" hidden></div>
-  <div class="card"><div class="mute hint">Modèles de séance</div>${Object.keys(db.templates).map(n=>`<div class="set"><span>${esc(n)}</span><span class="row"><button class="x" data-a="rentpl" data-n="${esc(n)}">Renommer</button><button class="x" data-a="deltpl" data-n="${esc(n)}">Supprimer</button></span></div>`).join('')}</div><div class="mute" style="text-align:center">Version 1.0.19</div>`;
+  <div class="card"><div class="mute hint">Modèles de séance</div>${Object.keys(db.templates).map(n=>`<div class="set"><span>${esc(n)}</span><span class="row"><button class="x" data-a="rentpl" data-n="${esc(n)}">Renommer</button><button class="x" data-a="deltpl" data-n="${esc(n)}">Supprimer</button></span></div>`).join('')}</div><div class="mute" style="text-align:center">Version 1.0.20</div>`;
 }
 
 function shareBackup(){
@@ -254,6 +254,7 @@ document.addEventListener('click',ev=>{
   else if(a==='cancel'){if(!confirm('Annuler cette séance ?'))return;db.active=null}
   else if(a==='addex'){const n=$('#newex').value.trim();if(!n)return;A.ex.push({n,sets:[]})}
   else if(a==='target'){const v=prompt('Fourchette de reps (ex. 8-10 ou 1-3). Laisse vide pour enlever.',A.ex[+d.i].t||'');if(v===null)return;A.ex[+d.i].t=v.trim().slice(0,12)}
+  else if(a==='mv'){const i=+d.i,j=i+ +d.d;if(j<0||j>=A.ex.length)return;[A.ex[i],A.ex[j]]=[A.ex[j],A.ex[i]]}
   else if(a==='delex'){if(!confirm('Retirer cet exercice ?'))return;A.ex.splice(+d.i,1)}
   else if(a==='addset'){const w=parseFloat(($('#w'+d.i).value||'').replace(',','.')),r=parseInt($('#r'+d.i).value);
     if(isNaN(w)||isNaN(r)||r<1){alert('Entre un poids et un nombre de reps.');return}
